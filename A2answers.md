@@ -71,19 +71,21 @@ A lock for the inode needs to be taken when modifying the file's size and when p
 
 File permission information also needs to be locked to prevent time-of-check-to-time-of-use problems, where the permissions settings has elevated after the permissions has checked, but before the operation requiring the permissions is performed. Without locking, it allows operations to be performed even when they are not permitted to.
 
-In general, inode stats information needs to be locked when accessed. For modifications, an exclusive lock needs to be used. For purely reads, a shared lock can be used so that it cannot read partially written stats that area not consistent.
+In general, inode stats information needs to be locked when accessed. For modifications, an exclusive lock needs to be used. For purely reads, a shared lock can be used so that it cannot read partially written stats that are not consistent.
 
 ## Question 5
 
-Locating file contents are easier. In this C implementation, the file contents are located by a pointer to a contiguous region of memory from the point of view of the program. This makes it easy to arbitrarily locate bytes in the file given an offset, as the program can simply perform pointer arithmetic to find the byte's address. However, many block-based devices require a more way to map the file to multiple non-contiguous blocks on the disk with several layers of indirection to improve their performances. These levels of indirections increases the complexity of resolving where a given byte of a file at an arbitrary offset is actually located on the disk.
+Locating file contents are easier. In this C implementation, the file contents are located by a pointer to a contiguous region of memory from the point of view of the program. This makes it easy to arbitrarily locate bytes in the file given an offset, as the program can simply perform pointer arithmetic to find the byte's address. However, many block-based devices map the file to multiple non-contiguous blocks on the disk with several layers of indirection to improve their performances. These levels of indirections increases the complexity of resolving where a given byte of a file at an arbitrary offset is actually located on the disk.
 
 For instance, the inode may directly point to specific data blocks out of order, or it may point to index blocks that further point to more data blocks.
+
+If a requested region of data spans across multiple blocks, the filesystem needs to reconstruct the data from those blocks back into a single buffer.
 
 ## Question 6
 
 It is impossible to create files with slashes in their names since the FUSE API that we bind our filesystem operations to all uses the absolute path to the file to infer its filename. While the internal directory-entry data structures that this filesystem uses may allow slashes in its name string, any attempt by the user to add a slash into the filename will be treated as having another subdirectory before the slash.
 
-Filenames longer than 255 characters are also impossible since the filenames are stored in directory-entry structs that are of limited size, and that a length-checked version of string copying is used. If the filename is too long, a `ENAMETOOLONG` error is returned.
+Filenames longer than 255 characters are also impossible since the filenames are stored in directory-entry structs that are of limited size. Moreover, explicit length-checking is done while copying the filename strings. If the filename is too long, a `ENAMETOOLONG` error is returned.
 
 ## Question 7
 
